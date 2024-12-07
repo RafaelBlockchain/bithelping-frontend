@@ -1,0 +1,16 @@
+# Carpeta Contracts
+
+Esta carpeta contiene los contratos inteligentes para el proyecto **BitHelping**. 
+
+### Propósito
+Aquí se almacenan los archivos `.sol` desarrollados en Solidity, incluyendo los contratos principales:
+- **BitHelping (BITH):** El token principal del ecosistema.
+- **BitHelpingWallet:** Sistema de monederos seguros.
+- **BitHelpingSale:** Contrato de ventas y distribución de tokens.
+
+### Notas
+- Compilar los contratos utilizando [Remix](https://remix.ethereum.org/) o cualquier entorno compatible con Solidity.
+- Asegúrate de revisar cada contrato antes de desplegarlo en cualquier red blockchain.
+
+¡Listo para construir y desplegar! 🚀
+
