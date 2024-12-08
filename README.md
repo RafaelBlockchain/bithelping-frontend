@@ -7,3 +7,23 @@ Este proyecto permite comprar tokens BITH utilizando ETH, gestionar wallets segu
 Contribuidores: Cualquier persona interesada puede colaborar enviando mejoras o nuevas funcionalidades.
 ¡Gracias por apoyar a BitHelping y ser parte de nuestra comunidad!
 
+## Estructura del Proyecto
+
+El proyecto está organizado de la siguiente manera:
+
+
+frontend/
+├── public/
+│   ├── index.html
+│   └── assets/       # Recursos estáticos
+├── src/
+│   ├── components/   # Componentes reutilizables (Botones, Formularios)
+│   ├── pages/        # Páginas principales (Home, Dashboard, Wallets)
+│   ├── context/      # Contexto global (para estado de usuario y conexión Web3)
+│   ├── styles/       # Estilos globales
+│   ├── utils/        # Funciones auxiliares (formatos, conexión a contratos)
+│   └── App.js        # Archivo principal de React
+├── .env              # Configuración del entorno (URL RPC, claves privadas)
+├── package.json      # Dependencias
+├── README.md         # Documentación
+└── webpack.config.js # Configuración (opcional con CRA)
