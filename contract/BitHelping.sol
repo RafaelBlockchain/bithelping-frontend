@@ -1,47 +1,38 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract BitHelping {
-    // Metadatos del token
-    string public constant name = "BitHelping";
-    string public constant symbol = "BITH";
-    uint8 public constant decimals = 18;
-    uint256 public constant totalSupply = 210_000_000_000 * 10**uint256(decimals); // 210B tokens
-    uint256 public immutable creationTime;
+interface IBITH {
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function allowance(address tokenOwner, address spender) external view returns (uint256);
+}
 
-    // Configuración inicial
-    uint256 public constant initialNewbornAllocation = 220 * 10**uint256(decimals); // Cambiado a 220 BITH
-    uint256 public constant premineCap = (totalSupply * 80) / 100; // 80% del suministro total preminado
-    uint256 public totalMinedTokens;
-    uint256 public totalAllocatedToNewborns;
+contract BitHelpingToken {
+    // Variables principales
+    string public name = "BitHelping";
+    string public symbol = "BITH";
+    uint8 public decimals = 18;
+    uint256 public totalSupply;
 
-    // Ajuste dinámico de minería
-    uint256 public miningReward = 21_000 * 10**uint256(decimals);
-    uint256 public constant miningRewardReductionInterval = 365 days; // Reducción anual
-    uint256 public constant miningRewardReductionFactor = 90; // 90% cada año
-    uint256 public lastMiningAdjustment;
-
-    // Estructura para recién nacidos
-    struct Newborn {
-        uint256 allocation;
-        uint256 unlockTime;
-        bool registered;
-    }
+    address public owner;
+    address public feeRecipient;
+    uint256 public transactionFee = 80; // 0.8% (representado en base 10,000)
+    mapping(address => bool) public isFeeExempt;
 
     mapping(address => uint256) private balances;
     mapping(address => mapping(address => uint256)) private allowances;
-    mapping(address => Newborn) public newborns;
-    mapping(address => bool) public voters; // Direcciones autorizadas para votar en la DAO
-    mapping(bytes32 => bool) public verifiedHashes; // Registro de hashes verificados
-
-    address public owner;
 
     // Eventos
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
-    event TokensAllocated(address indexed newborn, uint256 amount, uint256 unlockTime);
-    event TokensMined(address indexed miner, uint256 amount);
-    event MiningRewardAdjusted(uint256 newReward);
+    event TokensBurned(address indexed account, uint256 amount);
+    event TokensStaked(address indexed staker, uint256 amount);
+    event TokensClaimed(address indexed staker, uint256 reward);
+    event Migration(address indexed user, uint256 amount);
+    event Paused();
+    event Unpaused();
 
     // Modificadores
     modifier onlyOwner() {
@@ -49,127 +40,146 @@ contract BitHelping {
         _;
     }
 
-    modifier onlyVoter() {
-        require(voters[msg.sender], "Not a voter");
+    modifier whenNotPaused() {
+        require(!paused, "Contract is paused");
         _;
     }
 
-    constructor() {
+    // Pausable functionality
+    bool public paused = false;
+
+    // Staking variables
+    struct Stake {
+        uint256 amount;
+        uint256 reward;
+    }
+
+    mapping(address => Stake) public stakes;
+    uint256 public stakingRewardRate = 100; // Representa 1% de recompensa
+
+    constructor(uint256 _initialSupply, address _feeRecipient) {
         owner = msg.sender;
-        creationTime = block.timestamp;
-
-        balances[owner] = premineCap;
-        emit Transfer(address(0), owner, premineCap);
-
-        lastMiningAdjustment = block.timestamp;
+        totalSupply = _initialSupply * (10 ** decimals);
+        balances[owner] = totalSupply;
+        feeRecipient = _feeRecipient;
+        isFeeExempt[owner] = true;
+        emit Transfer(address(0), owner, totalSupply);
     }
 
-    // Registro de recién nacidos con verificación descentralizada
-    function registerNewborn(address newborn, uint256 birthTimestamp, bytes32 hash) public onlyVoter {
-        require(newborn != address(0), "Invalid address");
-        require(!newborns[newborn].registered, "Newborn already registered");
-        require(totalAllocatedToNewborns < premineCap, "Premine cap reached");
-        require(!verifiedHashes[hash], "Hash already verified"); // Evitar duplicados
-
-        uint256 currentAllocation = calculateNewbornAllocation();
-        require(totalAllocatedToNewborns + currentAllocation <= premineCap, "Premine cap exceeded");
-
-        uint256 unlockTime = birthTimestamp + 18 * 365 days;
-        newborns[newborn] = Newborn({
-            allocation: currentAllocation,
-            unlockTime: unlockTime,
-            registered: true
-        });
-
-        totalAllocatedToNewborns += currentAllocation;
-        verifiedHashes[hash] = true;
-
-        emit TokensAllocated(newborn, currentAllocation, unlockTime);
+    // Pausable functions
+    function pause() external onlyOwner {
+        paused = true;
+        emit Paused();
     }
 
-    // Ajuste dinámico de recompensas de minería
-    function adjustMiningReward() internal {
-        uint256 timeElapsed = block.timestamp - lastMiningAdjustment;
-
-        if (timeElapsed >= miningRewardReductionInterval) {
-            miningReward = (miningReward * miningRewardReductionFactor) / 100; // Reducir recompensa
-            lastMiningAdjustment = block.timestamp;
-
-            emit MiningRewardAdjusted(miningReward);
-        }
+    function unpause() external onlyOwner {
+        paused = false;
+        emit Unpaused();
     }
 
-    // Función de minería
-    function mineTokens() public returns (bool) {
-        adjustMiningReward(); // Ajustar la recompensa si es necesario
-
-        require(totalMinedTokens + miningReward <= (totalSupply - premineCap), "Mining cap reached");
-
-        balances[msg.sender] += miningReward;
-        totalMinedTokens += miningReward;
-
-        emit TokensMined(msg.sender, miningReward);
-        return true;
-    }
-
-    // Registro automático de votantes
-    function addVoter(address voter) public onlyOwner {
-        require(voter != address(0), "Invalid address");
-        voters[voter] = true;
-    }
-
-    function removeVoter(address voter) public onlyOwner {
-        require(voters[voter], "Voter not found");
-        voters[voter] = false;
-    }
-
-    // Cálculo de asignación para recién nacidos
-    function calculateNewbornAllocation() public view returns (uint256) {
-        uint256 yearsSinceCreation = (block.timestamp - creationTime) / 365 days;
-        uint256 allocation = initialNewbornAllocation;
-
-        for (uint256 i = 0; i < yearsSinceCreation; i++) {
-            allocation /= 2;
-        }
-
-        return allocation;
-    }
-
-    // Funciones estándar de transferencia, aprobación, etc.
+    // ERC20 functionality
     function balanceOf(address account) public view returns (uint256) {
         return balances[account];
     }
 
-    function transfer(address to, uint256 amount) public returns (bool) {
-        require(to != address(0), "Invalid address");
-        require(balances[msg.sender] >= amount, "Insufficient balance");
-
-        balances[msg.sender] -= amount;
-        balances[to] += amount;
-
-        emit Transfer(msg.sender, to, amount);
+    function transfer(address recipient, uint256 amount) external whenNotPaused returns (bool) {
+        _transfer(msg.sender, recipient, amount);
         return true;
     }
 
-    function approve(address spender, uint256 amount) public returns (bool) {
-        require(spender != address(0), "Invalid address");
-
+    function approve(address spender, uint256 amount) external whenNotPaused returns (bool) {
         allowances[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) public returns (bool) {
-        require(to != address(0), "Invalid address");
-        require(balances[from] >= amount, "Insufficient balance");
-        require(allowances[from][msg.sender] >= amount, "Allowance exceeded");
-
-        balances[from] -= amount;
-        balances[to] += amount;
-        allowances[from][msg.sender] -= amount;
-
-        emit Transfer(from, to, amount);
+    function transferFrom(address sender, address recipient, uint256 amount) external whenNotPaused returns (bool) {
+        require(allowances[sender][msg.sender] >= amount, "Allowance exceeded");
+        allowances[sender][msg.sender] -= amount;
+        _transfer(sender, recipient, amount);
         return true;
     }
+
+    function allowance(address tokenOwner, address spender) external view returns (uint256) {
+        return allowances[tokenOwner][spender];
+    }
+
+    function _transfer(address sender, address recipient, uint256 amount) internal {
+        require(sender != address(0), "Invalid sender address");
+        require(recipient != address(0), "Invalid recipient address");
+        require(balances[sender] >= amount, "Insufficient balance");
+
+        uint256 fee = 0;
+        if (!isFeeExempt[sender] && !isFeeExempt[recipient]) {
+            fee = (amount * transactionFee) / 10000;
+            balances[feeRecipient] += fee;
+        }
+
+        balances[sender] -= amount;
+        balances[recipient] += (amount - fee);
+
+        emit Transfer(sender, recipient, amount - fee);
+        if (fee > 0) {
+            emit Transfer(sender, feeRecipient, fee);
+        }
+    }
+
+    // Staking functionality
+    function stakeTokens(uint256 amount) external whenNotPaused {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+
+        balances[msg.sender] -= amount;
+        stakes[msg.sender].amount += amount;
+        stakes[msg.sender].reward += (amount * stakingRewardRate) / 10000;
+
+        emit TokensStaked(msg.sender, amount);
+    }
+
+    function claimStakingRewards() external whenNotPaused {
+        uint256 reward = stakes[msg.sender].reward;
+        require(reward > 0, "No rewards to claim");
+
+        stakes[msg.sender].reward = 0;
+        balances[msg.sender] += reward;
+
+        emit TokensClaimed(msg.sender, reward);
+    }
+
+    // Token burning functionality
+    function burnTokens(uint256 amount) external whenNotPaused {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+
+        balances[msg.sender] -= amount;
+        totalSupply -= amount;
+
+        emit TokensBurned(msg.sender, amount);
+    }
+
+    // Token migration functionality
+    function migrateTokens(address recipient, uint256 amount) external whenNotPaused {
+        require(balances[msg.sender] >= amount, "Insufficient balance");
+        require(recipient != address(0), "Invalid recipient address");
+
+        balances[msg.sender] -= amount;
+        balances[recipient] += amount;
+
+        emit Migration(msg.sender, amount);
+    }
+
+    // Fee management
+    function setTransactionFee(uint256 _fee) external onlyOwner {
+        require(_fee <= 500, "Fee cannot exceed 5%");
+        transactionFee = _fee;
+    }
+
+    function setFeeRecipient(address _feeRecipient) external onlyOwner {
+        require(_feeRecipient != address(0), "Invalid fee recipient address");
+        feeRecipient = _feeRecipient;
+    }
+
+    function exemptFromFees(address account, bool exempt) external onlyOwner {
+        isFeeExempt[account] = exempt;
+    }
 }
+
 
