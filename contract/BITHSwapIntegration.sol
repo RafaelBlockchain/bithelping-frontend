@@ -2,111 +2,119 @@
 pragma solidity ^0.8.0;
 
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import "@uniswap/v2-core/contracts/interfaces/IERC20.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract BITHSwapIntegration {
-    address public owner;
-    IUniswapV2Router02 public uniswapRouter; // Router de Uniswap o PancakeSwap
-    IERC20 public bithToken; // Token BITH
+contract BITHSwapIntegration is Ownable {
+    IUniswapV2Router02 public uniswapRouter;
+    address public bithToken;
+    address public tariffManagementContract;
 
-    event LiquidityAdded(uint256 tokenAmount, uint256 ethAmount);
-    event TokensSwapped(address indexed user, uint256 tokenAmount, uint256 ethAmount);
+    event TokensSwapped(address indexed user, uint256 amountIn, uint256 amountOut);
+    event LiquidityAdded(address indexed user, uint256 tokenAmount, uint256 ethAmount);
+    event LiquidityRemoved(address indexed user, uint256 liquidity);
+    event FeeCollected(address indexed user, uint256 feeAmount);
 
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Not authorized");
+    constructor(address _router, address _bithToken, address _tariffContract) {
+        require(_router != address(0), "Invalid router address");
+        require(_bithToken != address(0), "Invalid BITH token address");
+        require(_tariffContract != address(0), "Invalid tariff contract address");
+
+        uniswapRouter = IUniswapV2Router02(_router);
+        bithToken = _bithToken;
+        tariffManagementContract = _tariffContract;
+    }
+
+    modifier validAddress(address addr) {
+        require(addr != address(0), "Invalid address");
         _;
     }
 
-    constructor(address _router, address _bithToken) {
-        require(_router != address(0), "Invalid router address");
-        require(_bithToken != address(0), "Invalid token address");
+    // Swapping BITH for another token
+    function swapBITHForToken(address tokenOut, uint256 amountIn, uint256 amountOutMin) external {
+        require(IERC20(bithToken).transferFrom(msg.sender, address(this), amountIn), "Transfer failed");
+        
+        // Approve Uniswap router to spend BITH tokens
+        IERC20(bithToken).approve(address(uniswapRouter), amountIn);
 
-        owner = msg.sender;
+        address[] memory path = new address[](2);
+        path[0] = bithToken;
+        path[1] = tokenOut;
+
+        uint256 fee = (amountIn * 3) / 1000; // 0.3% fee
+        IERC20(bithToken).transfer(tariffManagementContract, fee);
+        emit FeeCollected(msg.sender, fee);
+
+        uniswapRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amountIn - fee,
+            amountOutMin,
+            path,
+            msg.sender,
+            block.timestamp
+        );
+
+        emit TokensSwapped(msg.sender, amountIn, amountOutMin);
+    }
+
+    // Add liquidity to Uniswap pool (BITH/ETH)
+    function addLiquidity(uint256 tokenAmount, uint256 ethAmount) external payable {
+        require(msg.value == ethAmount, "Incorrect ETH amount");
+        require(IERC20(bithToken).transferFrom(msg.sender, address(this), tokenAmount), "Transfer failed");
+
+        IERC20(bithToken).approve(address(uniswapRouter), tokenAmount);
+
+        (uint256 amountToken, uint256 amountETH, uint256 liquidity) = uniswapRouter.addLiquidityETH{
+            value: ethAmount
+        }(
+            bithToken,
+            tokenAmount,
+            0,
+            0,
+            msg.sender,
+            block.timestamp
+        );
+
+        emit LiquidityAdded(msg.sender, amountToken, amountETH);
+    }
+
+    // Remove liquidity from Uniswap pool (BITH/ETH)
+    function removeLiquidity(address lpToken, uint256 liquidity) external {
+        require(IERC20(lpToken).transferFrom(msg.sender, address(this), liquidity), "Transfer failed");
+
+        IERC20(lpToken).approve(address(uniswapRouter), liquidity);
+
+        (uint256 amountToken, uint256 amountETH) = uniswapRouter.removeLiquidityETH(
+            bithToken,
+            liquidity,
+            0,
+            0,
+            msg.sender,
+            block.timestamp
+        );
+
+        emit LiquidityRemoved(msg.sender, liquidity);
+    }
+
+    // Update the tariff management contract
+    function updateTariffManagementContract(address _tariffContract) external onlyOwner validAddress(_tariffContract) {
+        tariffManagementContract = _tariffContract;
+    }
+
+    // Update the Uniswap router
+    function updateUniswapRouter(address _router) external onlyOwner validAddress(_router) {
         uniswapRouter = IUniswapV2Router02(_router);
-        bithToken = IERC20(_bithToken);
     }
 
-    /**
-     * @dev Agregar liquidez al pool (BITH/ETH)
-     */
-    function addLiquidity(uint256 tokenAmount) external payable onlyOwner {
-        require(tokenAmount > 0, "Token amount must be greater than 0");
-        require(msg.value > 0, "ETH amount must be greater than 0");
-
-        // Aprobar tokens para el router
-        bithToken.approve(address(uniswapRouter), tokenAmount);
-
-        // Agregar liquidez
-        uniswapRouter.addLiquidityETH{value: msg.value}(
-            address(bithToken), // Dirección del token
-            tokenAmount,        // Cantidad de tokens a agregar
-            0,                  // Mínimos permitidos (puedes ajustar estos valores)
-            0,                  // Mínimos permitidos
-            owner,              // Dirección que recibirá los tokens LP
-            block.timestamp     // Fecha límite
-        );
-
-        emit LiquidityAdded(tokenAmount, msg.value);
+    // Emergency withdrawal of tokens
+    function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
+        IERC20(token).transfer(msg.sender, amount);
     }
 
-    /**
-     * @dev Intercambiar ETH por BITH
-     */
-    function swapETHForTokens(uint256 minTokens) external payable {
-        require(msg.value > 0, "ETH amount must be greater than 0");
-
-        // Ruta del intercambio: ETH -> BITH
-        address;
-        path[0] = uniswapRouter.WETH(); // Dirección de WETH
-        path[1] = address(bithToken);   // Dirección del token BITH
-
-        // Ejecutar intercambio
-        uniswapRouter.swapExactETHForTokens{value: msg.value}(
-            minTokens,     // Cantidad mínima de tokens a recibir
-            path,          // Ruta del intercambio
-            msg.sender,    // Dirección que recibe los tokens
-            block.timestamp // Fecha límite
-        );
+    // Emergency withdrawal of ETH
+    function emergencyWithdrawETH(uint256 amount) external onlyOwner {
+        payable(msg.sender).transfer(amount);
     }
 
-    /**
-     * @dev Intercambiar BITH por ETH
-     */
-    function swapTokensForETH(uint256 tokenAmount, uint256 minETH) external {
-        require(tokenAmount > 0, "Token amount must be greater than 0");
-
-        // Aprobar tokens para el router
-        bithToken.approve(address(uniswapRouter), tokenAmount);
-
-        // Ruta del intercambio: BITH -> ETH
-        address;
-        path[0] = address(bithToken);  // Dirección del token BITH
-        path[1] = uniswapRouter.WETH(); // Dirección de WETH
-
-        // Ejecutar intercambio
-        uniswapRouter.swapExactTokensForETH(
-            tokenAmount,   // Cantidad de tokens a intercambiar
-            minETH,        // Cantidad mínima de ETH a recibir
-            path,          // Ruta del intercambio
-            msg.sender,    // Dirección que recibe el ETH
-            block.timestamp // Fecha límite
-        );
-
-        emit TokensSwapped(msg.sender, tokenAmount, minETH);
-    }
-
-    /**
-     * @dev Retirar tokens o ETH del contrato
-     */
-    function withdrawTokens(address tokenAddress, uint256 amount) external onlyOwner {
-        IERC20(tokenAddress).transfer(owner, amount);
-    }
-
-    function withdrawETH() external onlyOwner {
-        payable(owner).transfer(address(this).balance);
-    }
-
-    // Fallback para recibir ETH
     receive() external payable {}
 }
-
