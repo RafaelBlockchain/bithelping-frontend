@@ -1,186 +1,140 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// Interfaces de los contratos necesarios
-interface IBITH {
-    function transfer(address recipient, uint256 amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-}
-
-interface IBitHelpingWallet {
-    function deposit(address user, uint256 amount) external;
-    function withdraw(address user, uint256 amount) external;
-}
-
-interface IBitHelpingSale {
-    function buyTokens(address buyer, uint256 amount) external;
-    function sellTokens(address seller, uint256 amount) external;
-}
-
-interface IBitHelpingGovernance {
-    function createProposal(string memory description) external;
-    function voteOnProposal(uint256 proposalId, bool support) external;
-    function executeProposal(uint256 proposalId) external;
-}
-
-interface IBitHelpingDistribution {
-    function distribute(address recipient, uint256 amount) external;
-}
-
-interface IBitHelpingStaking {
-    function stake(uint256 amount) external;
-    function unstake(uint256 amount) external;
-}
-
-interface IBitHelpingMarketplace {
-    function listToken(address seller, uint256 amount) external;
-    function buyToken(address buyer, uint256 tokenId) external;
-}
-
-interface IFiatPayPalIntegration {
-    function registerPayment(address buyer, uint256 amount) external;
-}
-
-interface ITariffManagement {
-    function applyTransactionFee(uint256 amount) external view returns (uint256);
-}
-
-interface ITransactionAudit {
-    function auditTransaction(address user, uint256 amount) external;
-}
+import "./IBITH.sol";
 
 contract BitHelpingIntegration {
     address public owner;
     IBITH public bithToken;
-    IBitHelpingWallet public wallet;
-    IBitHelpingSale public sale;
-    IBitHelpingGovernance public governance;
-    IBitHelpingDistribution public distribution;
-    IBitHelpingStaking public staking;
-    IBitHelpingMarketplace public marketplace;
-    IFiatPayPalIntegration public fiatIntegration;
-    ITariffManagement public tariffManagement;
-    ITransactionAudit public transactionAudit;
 
-    event TokensBought(address indexed buyer, uint256 amount);
-    event TokensSold(address indexed seller, uint256 amount);
+    // Direcciones de contratos integrados
+    address public stakingContract;
+    address public marketplaceContract;
+    address public distributionContract;
+    address public governanceContract;
+    address public liquidityContract;
+    address public auditContract;
+    address public tariffManagementContract;
+    address public migrationContract;
+    address public charityContract;
+    address public oracleIntegrationContract;
+    address public paypalIntegrationContract;
+
+    // Eventos
+    event ContractUpdated(string indexed contractType, address indexed newAddress);
     event TokensStaked(address indexed staker, uint256 amount);
-    event TokensUnstaked(address indexed unstaker, uint256 amount);
-    event ProposalCreated(uint256 proposalId, string description);
-
+    event TokensBurned(address indexed burner, uint256 amount);
+    event TokensMigrated(address indexed user, uint256 amount);
+    event FeeCollected(address indexed payer, uint256 amount);
+    
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
         _;
     }
 
-    constructor(
-        address _bithToken,
-        address _wallet,
-        address _sale,
-        address _governance,
-        address _distribution,
-        address _staking,
-        address _marketplace,
-        address _fiatIntegration,
-        address _tariffManagement,
-        address _transactionAudit
-    ) {
+    constructor(address _bithToken) {
+        require(_bithToken != address(0), "Invalid BITH token address");
         owner = msg.sender;
         bithToken = IBITH(_bithToken);
-        wallet = IBitHelpingWallet(_wallet);
-        sale = IBitHelpingSale(_sale);
-        governance = IBitHelpingGovernance(_governance);
-        distribution = IBitHelpingDistribution(_distribution);
-        staking = IBitHelpingStaking(_staking);
-        marketplace = IBitHelpingMarketplace(_marketplace);
-        fiatIntegration = IFiatPayPalIntegration(_fiatIntegration);
-        tariffManagement = ITariffManagement(_tariffManagement);
-        transactionAudit = ITransactionAudit(_transactionAudit);
     }
 
-    // Función para comprar tokens
-    function buyTokens(uint256 amount) external {
-        uint256 fee = tariffManagement.applyTransactionFee(amount);
-        uint256 finalAmount = amount - fee;
-
-        sale.buyTokens(msg.sender, finalAmount);
-        transactionAudit.auditTransaction(msg.sender, finalAmount);
-
-        emit TokensBought(msg.sender, finalAmount);
+    // Actualizar direcciones de contratos integrados
+    function updateStakingContract(address _stakingContract) external onlyOwner {
+        require(_stakingContract != address(0), "Invalid address");
+        stakingContract = _stakingContract;
+        emit ContractUpdated("Staking", _stakingContract);
     }
 
-    // Función para vender tokens
-    function sellTokens(uint256 amount) external {
-        uint256 fee = tariffManagement.applyTransactionFee(amount);
-        uint256 finalAmount = amount - fee;
-
-        sale.sellTokens(msg.sender, finalAmount);
-        transactionAudit.auditTransaction(msg.sender, finalAmount);
-
-        emit TokensSold(msg.sender, finalAmount);
+    function updateMarketplaceContract(address _marketplaceContract) external onlyOwner {
+        require(_marketplaceContract != address(0), "Invalid address");
+        marketplaceContract = _marketplaceContract;
+        emit ContractUpdated("Marketplace", _marketplaceContract);
     }
 
-    // Función para depositar tokens en el monedero
-    function depositTokens(uint256 amount) external {
-        wallet.deposit(msg.sender, amount);
+    function updateDistributionContract(address _distributionContract) external onlyOwner {
+        require(_distributionContract != address(0), "Invalid address");
+        distributionContract = _distributionContract;
+        emit ContractUpdated("Distribution", _distributionContract);
     }
 
-    // Función para retirar tokens del monedero
-    function withdrawTokens(uint256 amount) external {
-        wallet.withdraw(msg.sender, amount);
+    function updateGovernanceContract(address _governanceContract) external onlyOwner {
+        require(_governanceContract != address(0), "Invalid address");
+        governanceContract = _governanceContract;
+        emit ContractUpdated("Governance", _governanceContract);
     }
 
-    // Función para hacer staking de tokens
+    function updateLiquidityContract(address _liquidityContract) external onlyOwner {
+        require(_liquidityContract != address(0), "Invalid address");
+        liquidityContract = _liquidityContract;
+        emit ContractUpdated("Liquidity", _liquidityContract);
+    }
+
+    function updateAuditContract(address _auditContract) external onlyOwner {
+        require(_auditContract != address(0), "Invalid address");
+        auditContract = _auditContract;
+        emit ContractUpdated("Audit", _auditContract);
+    }
+
+    function updateTariffManagementContract(address _tariffManagementContract) external onlyOwner {
+        require(_tariffManagementContract != address(0), "Invalid address");
+        tariffManagementContract = _tariffManagementContract;
+        emit ContractUpdated("TariffManagement", _tariffManagementContract);
+    }
+
+    function updateMigrationContract(address _migrationContract) external onlyOwner {
+        require(_migrationContract != address(0), "Invalid address");
+        migrationContract = _migrationContract;
+        emit ContractUpdated("Migration", _migrationContract);
+    }
+
+    function updateCharityContract(address _charityContract) external onlyOwner {
+        require(_charityContract != address(0), "Invalid address");
+        charityContract = _charityContract;
+        emit ContractUpdated("Charity", _charityContract);
+    }
+
+    function updateOracleIntegrationContract(address _oracleIntegrationContract) external onlyOwner {
+        require(_oracleIntegrationContract != address(0), "Invalid address");
+        oracleIntegrationContract = _oracleIntegrationContract;
+        emit ContractUpdated("OracleIntegration", _oracleIntegrationContract);
+    }
+
+    function updatePaypalIntegrationContract(address _paypalIntegrationContract) external onlyOwner {
+        require(_paypalIntegrationContract != address(0), "Invalid address");
+        paypalIntegrationContract = _paypalIntegrationContract;
+        emit ContractUpdated("PaypalIntegration", _paypalIntegrationContract);
+    }
+
+    // Funciones para interactuar con contratos específicos
     function stakeTokens(uint256 amount) external {
-        staking.stake(amount);
+        require(stakingContract != address(0), "Staking contract not set");
+        bithToken.transferFrom(msg.sender, stakingContract, amount);
         emit TokensStaked(msg.sender, amount);
     }
 
-    // Función para deshacer el staking de tokens
-    function unstakeTokens(uint256 amount) external {
-        staking.unstake(amount);
-        emit TokensUnstaked(msg.sender, amount);
+    function burnTokens(uint256 amount) external {
+        bithToken.burnTokens(amount);
+        emit TokensBurned(msg.sender, amount);
     }
 
-    // Función para registrar pagos a través de PayPal
-    function registerPaymentWithFiat(uint256 amount) external {
-        fiatIntegration.registerPayment(msg.sender, amount);
+    function migrateTokens(address recipient, uint256 amount) external {
+        require(migrationContract != address(0), "Migration contract not set");
+        bithToken.migrateTokens(recipient, amount);
+        emit TokensMigrated(recipient, amount);
     }
 
-    // Función para distribuir tokens
-    function distributeTokens(address recipient, uint256 amount) external onlyOwner {
-        distribution.distribute(recipient, amount);
+    function collectTransactionFee(address payer, uint256 amount) external {
+        require(tariffManagementContract != address(0), "Tariff contract not set");
+        bithToken.transferFrom(payer, tariffManagementContract, amount);
+        emit FeeCollected(payer, amount);
     }
 
-    // Función para crear una propuesta de gobernanza
-    function createGovernanceProposal(string memory description) external onlyOwner {
-        governance.createProposal(description);
-        emit ProposalCreated(proposalId++, description);
+    // Pausar y reanudar todas las operaciones
+    function pauseAll() external onlyOwner {
+        bithToken.pause();
     }
 
-    // Función para votar sobre una propuesta de gobernanza
-    function voteOnGovernanceProposal(uint256 proposalId, bool support) external {
-        governance.voteOnProposal(proposalId, support);
-    }
-
-    // Función para ejecutar una propuesta de gobernanza
-    function executeGovernanceProposal(uint256 proposalId) external {
-        governance.executeProposal(proposalId);
-    }
-
-    // Función para listar tokens en el marketplace
-    function listTokensForSale(uint256 amount) external {
-        marketplace.listToken(msg.sender, amount);
-    }
-
-    // Función para comprar tokens en el marketplace
-    function buyTokenFromMarketplace(uint256 tokenId) external {
-        marketplace.buyToken(msg.sender, tokenId);
-    }
-
-    // Función de emergencia para retirar tokens BITH
-    function withdrawBITH(uint256 amount) external onlyOwner {
-        require(bithToken.transfer(owner, amount), "Transfer failed");
+    function unpauseAll() external onlyOwner {
+        bithToken.unpause();
     }
 }
-
