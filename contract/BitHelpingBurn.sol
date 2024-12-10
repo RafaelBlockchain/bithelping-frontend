@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT 
 pragma solidity ^0.8.0;
 
 interface IBITH {
@@ -25,8 +25,8 @@ contract BitHelpingBurn {
     }
 
     /**
-     * @dev Permite al propietario quemar tokens desde el contrato.
-     * @param amount La cantidad de tokens a quemar.
+     * @dev Allows the owner to burn tokens from the contract.
+     * @param amount The amount of tokens to burn.
      */
     function ownerBurn(uint256 amount) external onlyOwner {
         require(amount > 0, "Amount must be greater than zero");
@@ -38,26 +38,26 @@ contract BitHelpingBurn {
     }
 
     /**
-     * @dev Permite a los usuarios quemar sus propios tokens.
-     * @param amount La cantidad de tokens a quemar.
+     * @dev Allows users to burn their own tokens.
+     * @param amount The amount of tokens to burn.
      */
     function userBurn(uint256 amount) external {
         require(amount > 0, "Amount must be greater than zero");
         require(bithToken.balanceOf(msg.sender) >= amount, "Insufficient token balance");
 
-        // Transferir tokens al contrato para quemarlos
+        // Transfer tokens to the contract to burn
         require(bithToken.transferFrom(msg.sender, address(this), amount), "Transfer failed");
 
-        // Quemar los tokens desde el contrato
+        // Burn the tokens from the contract
         bithToken.burn(amount);
 
         emit TokensBurned(msg.sender, amount);
     }
 
     /**
-     * @dev Permite transferir tokens al contrato para quemarlos manualmente.
-     * Solo el propietario puede ejecutar esta función.
-     * @param amount La cantidad de tokens que se transferirán al contrato para ser quemados.
+     * @dev Allows transferring tokens to the contract to burn them manually.
+     * Only the owner can execute this function.
+     * @param amount The amount of tokens to transfer to the contract to be burned.
      */
     function fundBurnPool(uint256 amount) external onlyOwner {
         require(amount > 0, "Amount must be greater than zero");
@@ -65,11 +65,10 @@ contract BitHelpingBurn {
     }
 
     /**
-     * @dev Consulta el saldo actual de tokens almacenados en el contrato para quemar.
-     * @return El saldo de tokens.
+     * @dev Returns the current balance of tokens stored in the contract to be burned.
+     * @return The token balance.
      */
     function getBurnPoolBalance() external view returns (uint256) {
         return bithToken.balanceOf(address(this));
     }
 }
-
