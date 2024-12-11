@@ -13,17 +13,21 @@ interface IBitHelping {
 }
 
 contract BitHelpingWallet {
-    address public immutable bitHelping; // Dirección del contrato BitHelping
-    address public owner; // Propietario de la cartera (representa al recién nacido o su tutor)
-    address public newborn; // Dirección del recién nacido
-    uint256 public unlockTime; // Fecha en la que los tokens estarán desbloqueados
+    address public immutable bitHelping; // Address of the BitHelping contract
+    address public owner; // Owner of the wallet (represents the newborn or their guardian)
+    address public newborn; // Address of the newborn
+    uint256 public unlockTime; // Date when the tokens will be unlocked
 
-    // Eventos
+    mapping(address => uint256) private ethBalances; // Balances for ETH deposits
+
+    // Events
     event TokensWithdrawn(address indexed by, uint256 amount);
     event TokensTransferred(address indexed to, uint256 amount);
     event WalletOwnershipTransferred(address indexed oldOwner, address indexed newOwner);
+    event Deposit(address indexed from, uint256 amount);
+    event Withdraw(address indexed to, uint256 amount);
 
-    // Modificadores
+    // Modifiers
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
         _;
@@ -42,35 +46,35 @@ contract BitHelpingWallet {
         newborn = _newborn;
         owner = msg.sender;
 
-        // Obtener el tiempo de desbloqueo desde BitHelping
+        // Retrieve unlock time from BitHelping
         (, uint256 _unlockTime, bool registered) = IBitHelping(bitHelping).newborns(_newborn);
         require(registered, "Newborn not registered in BitHelping");
         unlockTime = _unlockTime;
     }
 
-    // Consultar saldo actual en BitHelping
-    function balance() public view returns (uint256) {
+    // Check the current balance in BitHelping
+    function tokenBalance() public view returns (uint256) {
         return IBitHelping(bitHelping).balanceOf(address(this));
     }
 
-    // Reclamar tokens desde BitHelping al wallet
+    // Claim tokens from BitHelping to the wallet
     function claimTokens() public onlyOwner onlyAfterUnlock {
         IBitHelping(bitHelping).claimTokens();
     }
 
-    // Transferir tokens desde el wallet a otra dirección
-    function transfer(address to, uint256 amount) public onlyOwner {
+    // Transfer tokens from the wallet to another address
+    function transferTokens(address to, uint256 amount) public onlyOwner {
         require(to != address(0), "Invalid recipient address");
-        require(balance() >= amount, "Insufficient balance");
+        require(tokenBalance() >= amount, "Insufficient balance");
 
-        // Transferencia de tokens a través del contrato BitHelping
+        // Token transfer via the BitHelping contract
         bool success = IBitHelping(bitHelping).transfer(to, amount);
         require(success, "Token transfer failed");
 
         emit TokensTransferred(to, amount);
     }
 
-    // Cambiar el propietario de la cartera (e.g., en caso de cambio de tutor legal)
+    // Change the wallet owner (e.g., in case of a legal guardian change)
     function transferOwnership(address newOwner) public onlyOwner {
         require(newOwner != address(0), "Invalid new owner address");
 
@@ -78,9 +82,28 @@ contract BitHelpingWallet {
         owner = newOwner;
     }
 
-    // Fallback para rechazar envíos de ETH al contrato
+    // Deposit ETH into the wallet
+    function depositETH() external payable {
+        require(msg.value > 0, "Deposit amount must be greater than zero");
+        ethBalances[msg.sender] += msg.value;
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    // Withdraw ETH from the wallet
+    function withdrawETH(uint256 amount) external onlyOwner {
+        require(address(this).balance >= amount, "Insufficient contract balance");
+        ethBalances[owner] -= amount;
+        payable(owner).transfer(amount);
+        emit Withdraw(owner, amount);
+    }
+
+    // Check the ETH balance of the contract
+    function getContractETHBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    // Fallback to reject direct ETH transfers
     receive() external payable {
-        revert("ETH not accepted");
+        revert("Direct ETH not accepted");
     }
 }
-
