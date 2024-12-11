@@ -181,5 +181,3 @@ contract BitHelpingToken {
         isFeeExempt[account] = exempt;
     }
 }
-
-
