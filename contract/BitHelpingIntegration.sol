@@ -7,18 +7,8 @@ contract BitHelpingIntegration {
     address public owner;
     IBITH public bithToken;
 
-    // Direcciones de contratos integrados
-    address public stakingContract;
-    address public marketplaceContract;
-    address public distributionContract;
-    address public governanceContract;
-    address public liquidityContract;
-    address public auditContract;
-    address public tariffManagementContract;
-    address public migrationContract;
-    address public charityContract;
-    address public oracleIntegrationContract;
-    address public paypalIntegrationContract;
+    // Estructura para almacenar las direcciones de contratos integrados
+    mapping(string => address) private integratedContracts;
 
     // Eventos
     event ContractUpdated(string indexed contractType, address indexed newAddress);
@@ -26,9 +16,11 @@ contract BitHelpingIntegration {
     event TokensBurned(address indexed burner, uint256 amount);
     event TokensMigrated(address indexed user, uint256 amount);
     event FeeCollected(address indexed payer, uint256 amount);
-    
+    event ContractPaused(address indexed admin);
+    event ContractUnpaused(address indexed admin);
+
     modifier onlyOwner() {
-        require(msg.sender == owner, "Not authorized");
+        require(msg.sender == owner, "Not authorized: Owner only");
         _;
     }
 
@@ -38,103 +30,65 @@ contract BitHelpingIntegration {
         bithToken = IBITH(_bithToken);
     }
 
-    // Actualizar direcciones de contratos integrados
-    function updateStakingContract(address _stakingContract) external onlyOwner {
-        require(_stakingContract != address(0), "Invalid address");
-        stakingContract = _stakingContract;
-        emit ContractUpdated("Staking", _stakingContract);
+    // Actualizar la dirección de un contrato integrado
+    function updateIntegratedContract(string calldata contractType, address newAddress) external onlyOwner {
+        require(bytes(contractType).length > 0, "Contract type is required");
+        require(newAddress != address(0), "Invalid address");
+        integratedContracts[contractType] = newAddress;
+        emit ContractUpdated(contractType, newAddress);
     }
 
-    function updateMarketplaceContract(address _marketplaceContract) external onlyOwner {
-        require(_marketplaceContract != address(0), "Invalid address");
-        marketplaceContract = _marketplaceContract;
-        emit ContractUpdated("Marketplace", _marketplaceContract);
-    }
-
-    function updateDistributionContract(address _distributionContract) external onlyOwner {
-        require(_distributionContract != address(0), "Invalid address");
-        distributionContract = _distributionContract;
-        emit ContractUpdated("Distribution", _distributionContract);
-    }
-
-    function updateGovernanceContract(address _governanceContract) external onlyOwner {
-        require(_governanceContract != address(0), "Invalid address");
-        governanceContract = _governanceContract;
-        emit ContractUpdated("Governance", _governanceContract);
-    }
-
-    function updateLiquidityContract(address _liquidityContract) external onlyOwner {
-        require(_liquidityContract != address(0), "Invalid address");
-        liquidityContract = _liquidityContract;
-        emit ContractUpdated("Liquidity", _liquidityContract);
-    }
-
-    function updateAuditContract(address _auditContract) external onlyOwner {
-        require(_auditContract != address(0), "Invalid address");
-        auditContract = _auditContract;
-        emit ContractUpdated("Audit", _auditContract);
-    }
-
-    function updateTariffManagementContract(address _tariffManagementContract) external onlyOwner {
-        require(_tariffManagementContract != address(0), "Invalid address");
-        tariffManagementContract = _tariffManagementContract;
-        emit ContractUpdated("TariffManagement", _tariffManagementContract);
-    }
-
-    function updateMigrationContract(address _migrationContract) external onlyOwner {
-        require(_migrationContract != address(0), "Invalid address");
-        migrationContract = _migrationContract;
-        emit ContractUpdated("Migration", _migrationContract);
-    }
-
-    function updateCharityContract(address _charityContract) external onlyOwner {
-        require(_charityContract != address(0), "Invalid address");
-        charityContract = _charityContract;
-        emit ContractUpdated("Charity", _charityContract);
-    }
-
-    function updateOracleIntegrationContract(address _oracleIntegrationContract) external onlyOwner {
-        require(_oracleIntegrationContract != address(0), "Invalid address");
-        oracleIntegrationContract = _oracleIntegrationContract;
-        emit ContractUpdated("OracleIntegration", _oracleIntegrationContract);
-    }
-
-    function updatePaypalIntegrationContract(address _paypalIntegrationContract) external onlyOwner {
-        require(_paypalIntegrationContract != address(0), "Invalid address");
-        paypalIntegrationContract = _paypalIntegrationContract;
-        emit ContractUpdated("PaypalIntegration", _paypalIntegrationContract);
+    // Obtener la dirección de un contrato integrado
+    function getIntegratedContract(string calldata contractType) external view returns (address) {
+        return integratedContracts[contractType];
     }
 
     // Funciones para interactuar con contratos específicos
+
+    // Función para bloquear tokens en staking
     function stakeTokens(uint256 amount) external {
+        address stakingContract = integratedContracts["BitHelpingStaking"];
         require(stakingContract != address(0), "Staking contract not set");
-        bithToken.transferFrom(msg.sender, stakingContract, amount);
+        require(bithToken.transferFrom(msg.sender, stakingContract, amount), "Token transfer failed");
         emit TokensStaked(msg.sender, amount);
     }
 
+    // Función para quemar tokens
     function burnTokens(uint256 amount) external {
-        bithToken.burnTokens(amount);
+        require(amount > 0, "Amount must be greater than zero");
+        bool success = bithToken.burnTokens(amount); // Asegurarse de que burnTokens retorne un bool
+        require(success, "Burn failed");
         emit TokensBurned(msg.sender, amount);
     }
 
+    // Función para migrar tokens
     function migrateTokens(address recipient, uint256 amount) external {
+        address migrationContract = integratedContracts["TokenMigration"];
         require(migrationContract != address(0), "Migration contract not set");
-        bithToken.migrateTokens(recipient, amount);
+        bool success = bithToken.migrateTokens(recipient, amount); // Llamada a migrateTokens
+        require(success, "Migration failed");
         emit TokensMigrated(recipient, amount);
     }
 
+    // Función para cobrar tarifas de transacción
     function collectTransactionFee(address payer, uint256 amount) external {
-        require(tariffManagementContract != address(0), "Tariff contract not set");
-        bithToken.transferFrom(payer, tariffManagementContract, amount);
+        address tariffContract = integratedContracts["tariffManagement"];
+        require(tariffContract != address(0), "Tariff contract not set");
+        require(bithToken.transferFrom(payer, tariffContract, amount), "Fee transfer failed");
         emit FeeCollected(payer, amount);
     }
 
-    // Pausar y reanudar todas las operaciones
+    // Pausar todas las operaciones
     function pauseAll() external onlyOwner {
+        require(!bithToken.isPaused(), "Contract already paused");
         bithToken.pause();
+        emit ContractPaused(msg.sender);
     }
 
+    // Reanudar todas las operaciones
     function unpauseAll() external onlyOwner {
+        require(bithToken.isPaused(), "Contract is not paused");
         bithToken.unpause();
+        emit ContractUnpaused(msg.sender);
     }
 }
