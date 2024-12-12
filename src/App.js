@@ -8,6 +8,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "r
 import BitHelpingABI from "./abis/BitHelping.json";
 import BitHelpingLiquidityABI from "./abis/BitHelpingLiquidity.json";
 import RealTimeLineChart from "./components/charts/RealTimeLineChart";
+import { getContract, getBalance } from "./services/contractInteraction";
+import TokenTransfer from "./components/TokenTransfer";
 
 const App = () => {
   const [account, setAccount] = useState("");
