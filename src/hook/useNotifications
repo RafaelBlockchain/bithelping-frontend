@@ -1,23 +1,36 @@
 import { useState, useEffect } from "react";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-const useNotifications = (contract, eventName) => {
+toast.configure();
+
+const useNotifications = (contract, account) => {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    if (contract && eventName) {
-      const subscription = contract.events[eventName]({}, (error, event) => {
-        if (error) {
-          console.error("Error en el evento:", error);
-        } else {
-          setNotifications((prev) => [...prev, event]);
-        }
+    if (!contract || !account) return;
+
+    const handleEvent = (event) => {
+      const { event: eventName, returnValues } = event;
+      const message = `Nuevo evento: ${eventName} - ${JSON.stringify(returnValues)}`;
+      setNotifications((prev) => [...prev, { eventName, returnValues, timestamp: Date.now() }]);
+      toast.info(message, { position: toast.POSITION.BOTTOM_RIGHT });
+    };
+
+    // Subscribir a todos los eventos del contrato
+    const subscription = contract.events
+      .allEvents({ fromBlock: "latest" })
+      .on("data", handleEvent)
+      .on("error", (error) => {
+        console.error("Error en la suscripción de eventos:", error);
       });
 
-      return () => subscription.unsubscribe();
-    }
-  }, [contract, eventName]);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [contract, account]);
 
-  return notifications;
+  return { notifications };
 };
 
 export default useNotifications;
