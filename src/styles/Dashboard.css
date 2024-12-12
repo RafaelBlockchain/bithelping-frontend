@@ -1,25 +1,63 @@
-/* src/styles/Dashboard.css */
+/* Dashboard.css */
+
+/* Layout principal del dashboard */
 .dashboard-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 20px;
+  padding: 20px;
+  background-color: var(--secondary-color);
   flex-direction: column;
   align-items: center;
-  padding: 20px;
 }
 
+/* Encabezado del dashboard */
 .dashboard-header {
   font-size: 24px;
   font-weight: bold;
 }
 
+/* Secciones del dashboard */
 .dashboard-section {
   margin-top: 20px;
   width: 100%;
   max-width: 1200px;
 }
 
+/* Barra lateral */
+.sidebar {
+  background-color: var(--background-color);
+  padding: 20px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+}
+
+.sidebar a {
+  display: block;
+  margin: 10px 0;
+  color: var(--text-color);
+}
+
+/* Contenido principal */
+.main-content {
+  background-color: var(--background-color);
+  padding: 20px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+}
+
+/* Estilos de tarjetas (cards) */
+.card {
+  background-color: white;
+  padding: 15px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  margin-bottom: 20px;
+}
+
+/* Lista de transacciones */
 .transactions-list {
   margin-top: 20px;
   width: 100%;
   max-width: 800px;
 }
-
