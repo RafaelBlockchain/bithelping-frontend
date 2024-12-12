@@ -1,1 +1,16 @@
+src/
+├── assets/          # Archivos estáticos como imágenes, fuentes, etc.
+├── components/      # Componentes React (ya lo tienes)
+├── context/         # Contextos React (ya lo tienes)
+├── services/        # Servicios para manejar lógica API y blockchain (ya lo tienes)
+├── utils/           # Utilidades generales (ya lo tienes)
+├── styles/          # Estilos globales y específicos (ya lo tienes)
+├── pages/           # Páginas principales de la aplicación
+├── hooks/           # Custom hooks (React Hooks reutilizables)
+├── locales/         # Archivos de traducción para i18n
+├── config/          # Configuraciones del proyecto (blockchain, API, entornos)
+├── constants/       # Constantes reutilizables
+├── tests/           # Pruebas unitarias y de integración
+├── index.js         # Archivo principal (ya lo tienes)
+└── App.js           # Componente raíz (ya lo tienes)
 
