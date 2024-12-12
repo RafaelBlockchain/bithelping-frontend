@@ -1,1 +1,14 @@
+import React from 'react';
+import { useTheme } from '../context/ThemeContext';
+
+const ThemeSwitcher = () => {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <button onClick={toggleTheme}>
+      Cambiar a modo {theme === 'light' ? 'oscuro' : 'claro'}
+    </button>
+  );
+};
+
+export default ThemeSwitcher;
 
