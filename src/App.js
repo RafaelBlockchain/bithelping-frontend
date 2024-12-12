@@ -6,13 +6,14 @@ import { ethers } from "ethers";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import BitHelpingABI from "./abis/BitHelping.json";
 import BitHelpingLiquidityABI from "./abis/BitHelpingLiquidity.json";
-import RealTimeLineChart from "./components/charts/RealTimeLineChart";
-import RealTimeNotifications from "./notifications/RealTimeNotifications";
-import TokenTransfer from "./components/TokenTransfer";
 import { Web3Provider } from "./contexts/web3Context";
 import { UserProvider, useUser } from "./contexts/UserContext"; // Importar UserContext
 import { walletConnect } from "./utils/walletConnect"; // Importar walletConnect
+import RealTimeLineChart from "./components/charts/RealTimeLineChart";
+import RealTimeNotifications from "./notifications/RealTimeNotifications";
+import TokenTransfer from "./components/TokenTransfer";
 
+// Definir las direcciones de los contratos
 const CONTRACT_ADDRESS = "0xYourBitHelpingAddress"; // Reemplaza con la dirección real del contrato
 const LIQUIDITY_CONTRACT_ADDRESS = "0xYourLiquidityContractAddress"; // Reemplaza con la dirección real
 
@@ -131,5 +132,84 @@ const RootApp = () => (
 );
 
 export default RootApp;
+
+// Componentes auxiliares
+
+// ThemeSwitcher.js
+import React from 'react';
+import { useTheme } from '../context/ThemeContext';
+
+const ThemeSwitcher = () => {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <button onClick={toggleTheme}>
+      Cambiar a modo {theme === 'light' ? 'oscuro' : 'claro'}
+    </button>
+  );
+};
+
+// NotificationList.js
+import React from 'react';
+import { useNotifications } from '../context/NotificationsContext';
+
+const NotificationList = () => {
+  const { notifications } = useNotifications();
+
+  return (
+    <div className="notifications">
+      {notifications.map((notification, index) => (
+        <div key={index} className="notification">
+          {notification}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// TransactionHistory.js
+import React from 'react';
+import { useTransactions } from '../context/TransactionContext';
+
+const TransactionHistory = () => {
+  const { transactions } = useTransactions();
+
+  return (
+    <div>
+      <h3>Historial de Transacciones</h3>
+      <ul>
+        {transactions.map((transaction, index) => (
+          <li key={index}>
+            <p>Fecha: {transaction.date}</p>
+            <p>Tipo: {transaction.type}</p>
+            <p>Monto: {transaction.amount}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+// ContractDetails.js
+import React, { useEffect } from 'react';
+import { useContract } from '../context/ContractContext';
+
+const ContractDetails = () => {
+  const { contract, setNewContract } = useContract();
+
+  useEffect(() => {
+    // Código para interactuar con el contrato
+  }, [contract]);
+
+  return (
+    <div>
+      <h2>Detalles del Contrato</h2>
+      <p>Dirección del contrato: {contract ? contract.options.address : 'Cargando...'}</p>
+    </div>
+  );
+};
+
+
+
+
 
 
