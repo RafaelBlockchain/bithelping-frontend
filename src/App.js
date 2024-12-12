@@ -264,7 +264,40 @@ const App = () => {
   );
 };
 
-export default App;
+import React, { useContext } from "react";
+import { Web3Context, Web3Provider } from "./contexts/web3Context";
+import { walletConnect } from "./utils/walletConnect";
 
-export default App;
+const App = () => {
+  const { account, connectWalletConnect } = useContext(Web3Context);
+
+  return (
+    <div className="App">
+      <h1>BitHelping Dashboard</h1>
+      {!account ? (
+        <div>
+          <button onClick={() => connectWalletConnect(walletConnect)}>
+            Conectar con WalletConnect
+          </button>
+        </div>
+      ) : (
+        <div>
+          <p>Cuenta conectada: {account}</p>
+          {/* Aquí iría el resto de la aplicación */}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const RootApp = () => (
+  <Web3Provider>
+    <App />
+  </Web3Provider>
+);
+
+
+export default RootApp;
+
+
 
