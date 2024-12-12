@@ -14,6 +14,9 @@ const Dashboard = () => {
       const accounts = await web3.eth.getAccounts();
       setAccount(accounts[0]);
 
+      const realTimeData = await web3.eth.getRealTimeData();
+      setRealTimeData(realTimeData[0]);
+
       const contractInstance = new web3.eth.Contract(contractABI, contractAddress);
       setContract(contractInstance);
 
@@ -26,7 +29,7 @@ const Dashboard = () => {
 
   return (
     <div>
-      <h2>Bienvenido, {account}</h2>
+      <h2>Bienvenido al Dashboard</h2>
       <p>Saldo de BITH: {balance} BITH</p>
       <p>Cuenta conectada: {account}</p>
       <p>Balance: {balance} BITH</p>
