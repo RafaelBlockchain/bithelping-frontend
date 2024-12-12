@@ -7,6 +7,7 @@ import { ethers } from "ethers";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import BitHelpingABI from "./abis/BitHelping.json";
 import BitHelpingLiquidityABI from "./abis/BitHelpingLiquidity.json";
+import RealTimeLineChart from "./components/charts/RealTimeLineChart";
 
 const App = () => {
   const [account, setAccount] = useState("");
@@ -20,7 +21,7 @@ const App = () => {
 
   const CONTRACT_ADDRESS = "0xYourBitHelpingAddress"; // Reemplaza con la dirección real del contrato
   const LIQUIDITY_CONTRACT_ADDRESS = "0xYourLiquidityContractAddress"; // Reemplaza con la dirección real
-
+  
   // Conectar a MetaMask
   const connectWallet = async () => {
     if (window.ethereum) {
@@ -50,6 +51,42 @@ const App = () => {
       setBalance(balance);
     }
   };
+  
+  //Graficos
+  return (
+  <div className="App">
+    <h1>BitHelping Dashboard</h1>
+    {!account ? (
+      <button onClick={connectWallet}>Conectar Wallet</button>
+    ) : (
+      <div>
+        <p>Cuenta conectada: {account}</p>
+        <p>Balance: {balance} BITH</p>
+
+        {/* Sección de Gráficos */}
+        <h2>Gráficos en Tiempo Real</h2>
+        <RealTimeLineChart data={realTimeData} />
+        
+        {/* Otras secciones */}
+        <h2>Transferencia de Tokens</h2>
+        <input
+          type="text"
+          placeholder="Dirección del destinatario"
+          value={recipient}
+          onChange={(e) => setRecipient(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Cantidad"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+        <button onClick={() => transferTokens(recipient, amount)}>Transferir Tokens</button>
+      </div>
+    )}
+  </div>
+);
+
 
   // Transferir tokens
   const transferTokens = async (recipient, transferAmount) => {
