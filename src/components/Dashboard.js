@@ -26,7 +26,7 @@ const Dashboard = () => {
 
   return (
     <div>
-      <h2>Bienvenido, {account, balance, realTimeData }</h2>
+      <h2>Bienvenido, {account}</h2>
       <p>Saldo de BITH: {balance} BITH</p>
       <p>Cuenta conectada: {account}</p>
       <p>Balance: {balance} BITH</p>
