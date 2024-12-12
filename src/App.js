@@ -236,10 +236,35 @@ const App = () => {
           <button onClick={pauseContract}>Pausar Contrato</button>
           <button onClick={unpauseContract}>Reanudar Contrato</button>
         </div>
+  
+import RealTimeNotifications from "./notifications/RealTimeNotifications";
+
+const App = () => {
+  const [account, setAccount] = useState("");
+  const [contract, setContract] = useState(null);
+
+  // Configuración de Web3 y conexión al contrato ya implementada
+  const connectWallet = async () => {
+    // ... código existente para conectar MetaMask
+  };
+
+  return (
+    <div className="App">
+      <h1>BitHelping Dashboard</h1>
+      {!account ? (
+        <button onClick={connectWallet}>Conectar Wallet</button>
+      ) : (
+        <div>
+          <p>Cuenta conectada: {account}</p>
+          <RealTimeNotifications contract={contract} account={account} />
+          {/* Resto del dashboard */}
+        </div>
       )}
     </div>
   );
 };
+
+export default App;
 
 export default App;
 
