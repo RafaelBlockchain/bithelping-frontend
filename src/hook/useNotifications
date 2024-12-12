@@ -1,0 +1,23 @@
+import { useState, useEffect } from "react";
+
+const useNotifications = (contract, eventName) => {
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    if (contract && eventName) {
+      const subscription = contract.events[eventName]({}, (error, event) => {
+        if (error) {
+          console.error("Error en el evento:", error);
+        } else {
+          setNotifications((prev) => [...prev, event]);
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    }
+  }, [contract, eventName]);
+
+  return notifications;
+};
+
+export default useNotifications;
